@@ -1,0 +1,72 @@
+use crate::gpu_device::{
+    ClearableGPUDevice, ImageGPUDevice, PlaneGPUDevice, ShapeGPUDevice, TextGPUDevice,
+};
+
+macro_rules! gpu_device_capabilities {
+    ( $( $cap:ident => $trait:ident ),+ $(,)? ) => {
+        #[non_exhaustive]
+        #[repr(u8)]
+        pub enum GPUDeviceCapabilityRequest {
+            $( $cap ),+
+        }
+
+        #[non_exhaustive]
+        #[repr(C)]
+        pub enum GPUDeviceCapabilityRef<'a> {
+            $( $cap(&'a dyn $trait) ),+
+        }
+
+        #[non_exhaustive]
+        #[repr(C)]
+        pub enum GPUDeviceCapabilityMut<'a> {
+            $( $cap(&'a mut dyn $trait) ),+
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! has_gpu_device_capability {
+    (
+        $( $rq:ident),+ $(,)?
+    ) => {
+        fn get_capability(
+            &'_ self,
+            request: internal_utils::gpu_device::GPUDeviceCapabilityRequest,
+        ) -> Option<internal_utils::gpu_device::GPUDeviceCapabilityRef<'_>> {
+            match request {
+                $(
+                    internal_utils::gpu_device::GPUDeviceCapabilityRequest::$rq => {
+                        Some(
+                            internal_utils::gpu_device::GPUDeviceCapabilityRef::$rq(self)
+                        )
+                    }
+                )+
+                _ => None,
+            }
+        }
+
+        fn get_capability_mut(
+            &'_ mut self,
+            request: internal_utils::gpu_device::GPUDeviceCapabilityRequest,
+        ) -> Option<internal_utils::gpu_device::GPUDeviceCapabilityMut<'_>> {
+            match request {
+                $(
+                    internal_utils::gpu_device::GPUDeviceCapabilityRequest::$rq => {
+                        Some(
+                            internal_utils::gpu_device::GPUDeviceCapabilityMut::$rq(self)
+                        )
+                    }
+                )+
+                _ => None,
+            }
+        }
+    };
+}
+
+gpu_device_capabilities!(
+    Clearable => ClearableGPUDevice,
+    Plane => PlaneGPUDevice,
+    Shape => ShapeGPUDevice,
+    Text => TextGPUDevice,
+    Image => ImageGPUDevice
+);

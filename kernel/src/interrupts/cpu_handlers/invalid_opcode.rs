@@ -1,0 +1,9 @@
+use internal_utils::logln;
+use x86_64::structures::idt::InterruptStackFrame;
+
+use crate::hlt_loop_hard;
+
+pub extern "x86-interrupt" fn invalid_opcode_handler(_stack_frame: InterruptStackFrame) {
+    logln!("INVALID OPCODE\n{:#?}", _stack_frame);
+    hlt_loop_hard();
+}

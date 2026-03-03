@@ -1,5 +1,5 @@
+use internal_utils::structures::OnceMutex;
 use pic8259::ChainedPics;
-use spin::Mutex;
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -21,15 +21,26 @@ impl InterruptIndex {
     pub fn as_u8(self) -> u8 {
         self as u8
     }
-
-    /// Returns the corresponding interrupt number for this interrupt type as a usize
-    pub fn as_usize(self) -> usize {
-        usize::from(self.as_u8())
-    }
 }
 
 /// The PICs of the system.
-pub static PICS: Mutex<ChainedPics> = Mutex::new(unsafe {
-    // this is unsafe, because wrong offsets will cause undefined behavior
-    ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET)
-});
+pub static PICS: OnceMutex<ChainedPics> = OnceMutex::new();
+
+pub trait Pics {
+    fn initialize(&self);
+    unsafe fn notify_end_of_interrupt(&self, interrupt_id: u8);
+}
+impl Pics for OnceMutex<ChainedPics> {
+    fn initialize(&self) {
+        self.call_once(|| unsafe {
+            // this is unsafe, because wrong offsets will cause undefined behavior
+            let mut pics = ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET);
+            pics.initialize();
+            pics
+        });
+    }
+
+    unsafe fn notify_end_of_interrupt(&self, interrupt_id: u8) {
+        unsafe { self.lock().unwrap().notify_end_of_interrupt(interrupt_id) };
+    }
+}
