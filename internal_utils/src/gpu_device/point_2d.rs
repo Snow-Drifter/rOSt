@@ -5,7 +5,6 @@ pub struct Point2D<T> {
     pub x: T,
     pub y: T,
 }
-pub static ZERO: Point2D<isize> = Point2D { x: 0, y: 0 };
 
 impl<T> Add for Point2D<T>
 where

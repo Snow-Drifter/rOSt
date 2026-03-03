@@ -17,8 +17,7 @@ pub use disk_descriptor::DiskDescriptor;
 mod partition_descriptor;
 use internal_utils::{
     block_device::{BLOCK_DEVICES, BootableBlockDevice},
-    display::format_size,
-    logln,
+    format_size, logln,
 };
 pub use partition_descriptor::PartitionDescriptor;
 

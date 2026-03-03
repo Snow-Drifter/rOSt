@@ -1,10 +1,9 @@
 use core::fmt::{self, Write};
+use spin::Once;
 use x86_64::instructions::interrupts;
 
-use crate::structures::OnceMutex;
-
-pub trait Logger: Write + Send {
-    fn try_receive<'a>(&'_ mut self, buffer: &'a mut [u8]) -> Option<&'a str>;
+pub trait Logger: Write + Send + Sync {
+    fn try_receive<'a>(&'_ self, buffer: &'a mut [u8]) -> Option<&'a str>;
 }
 
 #[macro_export]
@@ -21,8 +20,9 @@ macro_rules! logln {
 #[doc(hidden)]
 pub fn __print(args: fmt::Arguments) {
     interrupts::without_interrupts(|| {
-        let guard = LOGGER.lock();
-        if let Some(mut logger) = guard {
+        #[allow(static_mut_refs)]
+        let guard = unsafe { LOGGER.get_mut() };
+        if let Some(logger) = guard {
             logger.write_fmt(args).unwrap();
         }
     });
@@ -35,12 +35,20 @@ macro_rules! try_serial_read {
     };
 }
 
+#[macro_export]
+macro_rules! serial_read {
+    ($arg:expr) => {
+        $crate::logger::__serial_read($arg)
+    };
+}
+
 #[doc(hidden)]
 pub fn __try_serial_read(callback: impl FnOnce(&str)) {
     let mut data = [0u8; 64];
     let read = interrupts::without_interrupts(|| {
-        let guard = LOGGER.lock();
-        if let Some(mut logger) = guard {
+        #[allow(static_mut_refs)]
+        let guard = unsafe { LOGGER.get() };
+        if let Some(logger) = guard {
             logger.try_receive(&mut data)
         } else {
             None
@@ -51,4 +59,26 @@ pub fn __try_serial_read(callback: impl FnOnce(&str)) {
     }
 }
 
-pub static LOGGER: OnceMutex<&'static mut dyn Logger> = OnceMutex::new();
+#[doc(hidden)]
+pub fn __serial_read(callback: impl FnOnce(&str)) {
+    let mut data = [0u8; 64];
+    let read = loop {
+        let result = interrupts::without_interrupts(|| {
+            #[allow(static_mut_refs)]
+            let guard = unsafe { LOGGER.get() };
+            if let Some(logger) = guard {
+                logger.try_receive(&mut data)
+            } else {
+                None
+            }
+        });
+        if result.is_some() {
+            break result;
+        }
+    };
+    if let Some(str) = read {
+        callback(str);
+    }
+}
+
+pub static mut LOGGER: Once<&'static mut dyn Logger> = Once::new();

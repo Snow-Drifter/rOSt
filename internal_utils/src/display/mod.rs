@@ -2,6 +2,7 @@ use alloc::{format, string::String};
 
 mod hex_number;
 pub use hex_number::HexNumber;
+pub mod ansi_colors;
 
 /// Formats the size in bytes to a human readable string.
 pub fn format_size(bytes: u64) -> String {

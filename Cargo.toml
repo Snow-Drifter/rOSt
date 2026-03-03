@@ -1,7 +1,7 @@
 [package]
 name = "os"
 version = "0.1.0"
-edition = { workspace=true }
+edition = { workspace = true }
 
 [build-dependencies]
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
@@ -12,44 +12,51 @@ bitflags.workspace = true
 ovmf-prebuilt = "0.2.7"
 
 [profile.dev]
+panic = "abort"
+debug = false
 lto = true
+strip = true
 codegen-units = 1
 incremental = false
 
 [profile.release]
+panic = "abort"
+debug = false
 lto = true
+strip = true
 codegen-units = 1
 incremental = false
 
 [workspace]
-members = [
-    "internal_utils",
-    "kernel",
-    "drivers/ata",
-    "drivers/vga",
-    "test_framework"
-]
+resolver = "3"
+members = ["internal_utils", "kernel", "drivers/ata", "drivers/vga"]
 
 [workspace.package]
 edition = "2024"
 
 [workspace.dependencies]
-internal_utils = { path = "internal_utils"}
+internal_utils = { path = "internal_utils" }
 kernel = { path = "kernel" }
 vga = { path = "drivers/vga" }
 ata = { path = "drivers/ata" }
-test_framework = { path = "test_framework" }
-bitflags = "2.10.0"
-bootloader_api = "0.11"
-pic8259 = "0.11.0" # interrupt controller
-noto-sans-mono-bitmap = { version = "0.3.2" } # nice bitmap font
-pc-keyboard = "0.8.0" # keyboard scan code converter
-linked_list_allocator = "0.10.5" # allocator implementation
-spin = "0.10.0" # spinlock implementation
-x86_64 = "0.15.4" # configures the serial port, cpu exception table
-tinytga = "0.5.0" # for loading the OS logo
-uart_16550 = "0.4.0" # serial port interface used for sending debug output to the host
-lazy_static = { version = "1.5.0", features = [ "spin_no_std" ]}
+bitflags = { version = "2.11.0", default-features = false }
+bootloader_api = { version = "0.11" }
+pic8259 = { version = "0.11.0" }
+noto-sans-mono-bitmap = { version = "0.3.2" }
+pc-keyboard = { version = "0.8.0" }
+linked_list_allocator = { version = "0.10.5", default-features = false, features = [
+    "use_spin",
+] }
+spin = { version = "0.10.0", default-features = false, features = [
+    "use_ticket_mutex",
+    "once",
+    "rwlock",
+] }
+x86_64 = { version = "0.15.4" }
+byteorder = { version = "1.5.0", default-features = false }
+tinytga = { version = "0.5.0" }
+uart_16550 = { version = "0.4.0" }
+lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
 
 ###################################
 # Register all failing tests here #

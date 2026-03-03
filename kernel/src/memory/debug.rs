@@ -4,7 +4,7 @@ use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 pub fn print_memory_map(memory_map: &MemoryRegions) {
     #[cfg(debug_assertions)]
     {
-        use internal_utils::{display::HexNumber, log, logln};
+        use internal_utils::{HexNumber, log, logln};
 
         logln!("[   ---{:^15}---   ]", "MEMORY MAP");
         memory_map.iter().for_each(|region| {

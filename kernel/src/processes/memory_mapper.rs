@@ -78,14 +78,13 @@ unsafe fn get_kernel_data_and_stack_level_2_table_addresses(pmo: u64) -> (PhysAd
 }
 
 /// Clears the memory and page-table mapping for a given level 4 page table (assuming user process).
-pub unsafe fn clear_user_mode_mapping(level_4_addr: PhysAddr) -> Result<(), AddressNotAligned> {
+pub unsafe fn clear_user_mode_mapping(level_4_frame: PhysFrame) -> Result<(), AddressNotAligned> {
     let kernel_info = KERNEL_INFORMATION.get().unwrap();
     let pmo = kernel_info.physical_memory_offset;
     let allocator = kernel_info.allocator;
     let mut allocator = allocator.lock();
-    let level_4_frame: PhysFrame<Size4KiB> = PhysFrame::from_start_address(level_4_addr)?;
     let level_4_table = {
-        let level_4_table = (level_4_addr.as_u64() + pmo) as *mut PageTable;
+        let level_4_table = (level_4_frame.start_address().as_u64() + pmo) as *mut PageTable;
         unsafe { level_4_table.as_mut().unwrap() }
     };
 

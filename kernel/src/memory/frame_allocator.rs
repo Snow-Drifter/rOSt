@@ -1,6 +1,6 @@
 use bootloader_api::{BootInfo, info::MemoryRegionKind};
 use internal_utils::{
-    display::HexNumber, kernel_information::frame_allocator::FullFrameAllocator, log, logln,
+    HexNumber, kernel_information::frame_allocator::FullFrameAllocator, log, logln,
 };
 use x86_64::{
     PhysAddr, VirtAddr,

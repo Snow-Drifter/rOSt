@@ -3,10 +3,14 @@ use x86_64::structures::idt::InterruptStackFrame;
 
 use crate::hlt_loop_hard;
 
-pub extern "x86-interrupt" fn general_protection_fault_handler(
+pub extern "x86-interrupt" fn segment_not_present_handler(
     _stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
-    logln!("GP FAULT (error {:#?})\n{:#?}", _error_code, _stack_frame);
+    logln!(
+        "SEGMENT NOT PRESENT (error {:#?})\n{:#?}",
+        _error_code,
+        _stack_frame
+    );
     hlt_loop_hard();
 }

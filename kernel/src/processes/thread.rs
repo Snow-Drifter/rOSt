@@ -1,18 +1,24 @@
 use alloc::sync::Arc;
+use internal_utils::clocks::get_current_tick;
 use spin::Mutex;
 use x86_64::VirtAddr;
+
+use crate::processes::registers_state::Flags;
+use crate::processes::scheduler::{
+    add_thread_to_process_queues, remove_thread_from_process_queues,
+};
+use crate::processes::wakers::WakeHandle;
 
 use super::process::Process;
 
 use super::RegistersState;
-use super::dispatcher::remove_thread_from_process_queues;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ThreadState {
     NotStarted,
     Ready,
     Running,
-    Sleeping(u64),
+    Sleeping(WakeHandle),
     Terminated,
 }
 
@@ -37,36 +43,17 @@ pub struct Thread {
 impl Thread {
     /// Returns the percentage of ticks the thread spent running, calculated from the creation time of the thread
     pub fn tick_density(&self, current_tick: u64) -> u64 {
-        let ticks_maximum = current_tick - self.start_tick;
+        let ticks_maximum = current_tick.saturating_sub(self.start_tick).max(1);
         self.total_ticks * 100 / ticks_maximum
     }
 
     pub fn change_state(thread: Arc<Mutex<Thread>>, state: ThreadState) {
-        {
-            let borrowed_thread = thread.lock();
-            let mut borrowed_process = borrowed_thread.process.lock();
-            remove_thread_from_process_queues(
-                &borrowed_thread,
-                thread.clone(),
-                &mut borrowed_process,
-            );
-        }
         let mut borrowed_thread = thread.lock();
+        let process = borrowed_thread.process.clone();
+        let mut borrowed_process = process.lock();
+        remove_thread_from_process_queues(&mut borrowed_process, &thread, borrowed_thread.state);
         borrowed_thread.state = state;
-        {
-            let mut borrowed_process = borrowed_thread.process.lock();
-            match borrowed_thread.state {
-                ThreadState::NotStarted => {
-                    borrowed_process.not_started_threads.push(thread.clone())
-                }
-                ThreadState::Ready => borrowed_process.ready_threads.push(thread.clone()),
-                ThreadState::Running => panic!(
-                    "Trying to change a thread to running state - use dispatcher::switch_to_thread() instead"
-                ),
-                ThreadState::Sleeping(_) => borrowed_process.sleeping_threads.push(thread.clone()),
-                ThreadState::Terminated => {}
-            }
-        }
+        add_thread_to_process_queues(&mut borrowed_process, &thread, state);
     }
 
     /// Creates a new thread with the given starting address and stack pointer.
@@ -74,30 +61,32 @@ impl Thread {
     /// # Safety
     /// This function is unsafe as it does not enforce pointing the instruction and stack pointers to valid addresses.
     pub unsafe fn new_native(
-        address: u64,
-        stack_pointer: u64,
+        address: usize,
+        stack_pointer: usize,
         process: Arc<Mutex<Process>>,
     ) -> Arc<Mutex<Self>> {
         let thread = Thread {
             id: {
-                let process = process.lock();
-                process.not_started_threads.len()
-                    + process.ready_threads.len()
-                    + process.sleeping_threads.len()
-            } as u64,
+                let mut process = process.lock();
+                process.total_threads_created += 1;
+                process.total_threads_created
+            },
             state: ThreadState::NotStarted,
             total_ticks: 0,
-            start_tick: 0, //get_current_tick(),
+            start_tick: get_current_tick(),
             last_tick: 0,
             process: process.clone(),
             registers_state: RegistersState::new(
-                VirtAddr::new(address),
-                0x200,
-                VirtAddr::new(stack_pointer),
+                VirtAddr::new(address as u64),
+                Flags::IF.union(Flags::R1).union(Flags::RF),
+                VirtAddr::new(stack_pointer as u64),
             ),
         };
-        let rc = Arc::new(Mutex::new(thread));
-        process.lock().not_started_threads.push(rc.clone());
-        rc
+        let thread_reference = Arc::new(Mutex::new(thread));
+        process
+            .lock()
+            .not_started_threads
+            .push(thread_reference.clone());
+        thread_reference
     }
 }

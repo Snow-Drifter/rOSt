@@ -67,7 +67,7 @@ impl HexNumber for VirtAddr {
 
 impl HexNumber for u64 {
     fn to_separated_hex(self) -> String {
-        let hex = format!("{:16X}", self);
+        let hex = format!("{:016X}", self);
         format!(
             "0x{}_{}_{}_{}",
             &hex[0..4],
@@ -86,5 +86,14 @@ impl HexNumber for u64 {
         log!("{:04X}", (value >> 16) & 0xFFFF);
         log!("_");
         log!("{:04X}", value & 0xFFFF);
+    }
+}
+
+impl HexNumber for u16 {
+    fn to_separated_hex(self) -> String {
+        format!("0x{:04X}", self)
+    }
+    fn log_to_separated_hex(self) {
+        log!("0x{:04X}", self);
     }
 }

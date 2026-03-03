@@ -11,18 +11,17 @@ pub(crate) mod gdt;
 mod pic_handlers;
 pub use gdt::GDT;
 mod pic;
-pub use pic_handlers::SHOW_CLOCK;
 
-use crate::interrupts::{gdt::reload_gdt, interrupt_register::init_idt};
+use crate::interrupts::{
+    gdt::reload_gdt,
+    interrupt_register::init_idt,
+    pic::{PICS, Pics},
+};
 
-/// Initializes the PICs and enables interrupts
-pub fn enable() {
+/// Initializes the GDT, IDT and PIC controllers
+pub fn setup() {
     reload_gdt();
     init_idt();
-    unsafe {
-        // can cause undefined behaviour if the offsets were not set correctly
-        pic::PICS.lock().initialize();
-    }
-    x86_64::instructions::interrupts::enable();
-    logln!("Interrupts enabled");
+    PICS.initialize();
+    logln!("Interrupts set up");
 }

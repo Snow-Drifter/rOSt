@@ -2,3 +2,5 @@
 bindeps = true
 
 [build]
+rustflags = ["-C", "no-redzone=yes"]
+bindeps = true

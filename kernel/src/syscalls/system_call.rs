@@ -5,7 +5,6 @@ use spin::Mutex;
 use x86_64::VirtAddr;
 
 use crate::processes::thread::Thread;
-use crate::{memory::with_kernel_memory, processes::get_scheduler};
 
 use crate::interrupts::gdt::GDT;
 use core::arch::naked_asm;
@@ -106,56 +105,41 @@ unsafe extern "C" fn _syscall() -> ! {
     );
 }
 
-#[unsafe(no_mangle)]
-extern "C" fn handler(name: u64, arg1: u64, arg2: u64) -> u64 {
-    // This block executes after saving the user state and before returning back
-    with_kernel_memory(|| {
-        let thread = get_scheduler()
-            .as_mut()
-            .unwrap()
-            .running_thread
-            .clone()
-            .unwrap();
-        SYSCALLS.lock()[name as u16 as usize](arg1, arg2, thread)
-    })
-}
-
-// TODO Try to combine both of these functions to make it faster.
-// We should be able to return a C-style struct with two u64s and manage it through ASM.
-#[unsafe(no_mangle)]
-extern "C" fn get_code_selector() -> u64 {
-    with_kernel_memory(|| {
-        let thread = get_scheduler()
-            .as_mut()
-            .unwrap()
-            .running_thread
-            .clone()
-            .unwrap();
-        let thread: spin::MutexGuard<'_, Thread> = thread.as_ref().lock();
-        let process = thread.process.as_ref().lock();
-        if process.kernel_process {
-            (GDT.1.kernel_code_selector.index() * 8) as u64
-        } else {
-            ((GDT.1.user_code_selector.index() * 8) | 3) as u64
-        }
-    })
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn get_data_selector() -> u64 {
-    with_kernel_memory(|| {
-        let thread = get_scheduler()
-            .as_mut()
-            .unwrap()
-            .running_thread
-            .clone()
-            .unwrap();
-        let thread = thread.as_ref().lock();
-        let process = thread.process.as_ref().lock();
-        if process.kernel_process {
-            (GDT.1.kernel_data_selector.index() * 8) as u64
-        } else {
-            ((GDT.1.user_data_selector.index() * 8) | 3) as u64
-        }
-    })
-}
+//#[unsafe(no_mangle)]
+//extern "C" fn handler(name: u64, arg1: u64, arg2: u64) -> u64 {
+//    // This block executes after saving the user state and before returning back
+//    with_kernel_memory(|| {
+//        let thread = SCHEDULER.lock().unwrap().running_thread.clone().unwrap();
+//        SYSCALLS.lock()[name as u16 as usize](arg1, arg2, thread)
+//    })
+//}
+//
+//// TODO Try to combine both of these functions to make it faster.
+//// We should be able to return a C-style struct with two u64s and manage it through ASM.
+//#[unsafe(no_mangle)]
+//extern "C" fn get_code_selector() -> u64 {
+//    with_kernel_memory(|| {
+//        let thread = SCHEDULER.lock().unwrap().running_thread.clone().unwrap();
+//        let thread: spin::MutexGuard<'_, Thread> = thread.as_ref().lock();
+//        let process = thread.process.as_ref().lock();
+//        if process.kernel_process {
+//            (GDT.1.kernel_code_selector.index() * 8) as u64
+//        } else {
+//            ((GDT.1.user_code_selector.index() * 8) | 3) as u64
+//        }
+//    })
+//}
+//
+//#[unsafe(no_mangle)]
+//extern "C" fn get_data_selector() -> u64 {
+//    with_kernel_memory(|| {
+//        let thread = SCHEDULER.lock().unwrap().running_thread.clone().unwrap();
+//        let thread = thread.as_ref().lock();
+//        let process = thread.process.as_ref().lock();
+//        if process.kernel_process {
+//            (GDT.1.kernel_data_selector.index() * 8) as u64
+//        } else {
+//            ((GDT.1.user_data_selector.index() * 8) | 3) as u64
+//        }
+//    })
+//}

@@ -1,6 +1,6 @@
 use bootloader_api::{BootloaderConfig, config::Mapping};
 
-const ADDRESSES: &[u64] = &[
+pub const ADDRESSES: &[u64] = &[
     0xFFFF_8000_0000_0000,
     0xFFFF_8010_0000_0000,
     0xFFFF_8020_0000_0000,

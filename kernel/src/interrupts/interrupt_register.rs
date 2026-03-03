@@ -1,11 +1,13 @@
 use internal_utils::logln;
 use lazy_static::lazy_static;
-use x86_64::structures::idt::InterruptDescriptorTable;
+use x86_64::{VirtAddr, structures::idt::InterruptDescriptorTable};
 
 use crate::interrupts::{
     cpu_handlers::{
-        breakpoint_handler, double_fault_handler, general_protection_fault_handler, nmi_handler,
-        page_fault_handler,
+        alignment_check_handler, breakpoint_handler, debug_handler, device_not_available_handler,
+        divide_error_handler, double_fault_handler, general_protection_fault_handler,
+        invalid_opcode_handler, invalid_tss_handler, nmi_handler, page_fault_handler,
+        segment_not_present_handler, stack_segment_fault_handler,
     },
     pic::InterruptIndex,
     pic_handlers::{
@@ -22,27 +24,50 @@ lazy_static! {
         // ##################
         // # CPU interrupts #
         // ##################
-        idt.breakpoint.set_handler_fn(breakpoint_handler);
         unsafe {
+            idt.breakpoint
+                .set_handler_fn(breakpoint_handler)
+                .set_stack_index(crate::interrupts::gdt::DEBUG_IST_INDEX);
+            idt.debug
+                .set_handler_fn(debug_handler)
+                .set_stack_index(crate::interrupts::gdt::DEBUG_IST_INDEX);
+
             idt.non_maskable_interrupt
                 .set_handler_fn(nmi_handler)
                 .set_stack_index(crate::interrupts::gdt::NMI_IST_INDEX);
 
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
-                // changes stack for double fault to avoid triple faults
                 .set_stack_index(crate::interrupts::gdt::DOUBLE_FAULT_IST_INDEX);
+
+            idt.page_fault.set_handler_fn(page_fault_handler);
+
+            idt.general_protection_fault
+                .set_handler_fn(general_protection_fault_handler)
+                .set_stack_index(crate::interrupts::gdt::GPF_IST_INDEX);
+
+            idt.alignment_check.set_handler_fn(alignment_check_handler);
+
+            idt.device_not_available.set_handler_fn(device_not_available_handler);
+
+            idt.divide_error.set_handler_fn(divide_error_handler);
+
+            idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
+
+            idt.invalid_tss.set_handler_fn(invalid_tss_handler);
+
+            idt.segment_not_present.set_handler_fn(segment_not_present_handler);
+
+            idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
         }
-
-        idt.page_fault.set_handler_fn(page_fault_handler);
-
-        idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
 
         // ##################
         // # PIC interrupts #
         // ##################
-        idt[InterruptIndex::Timer.as_u8()]
-            .set_handler_fn(timer_interrupt_handler);
+        unsafe {
+            idt[InterruptIndex::Timer.as_u8()]
+                .set_handler_addr(VirtAddr::from_ptr(timer_interrupt_handler as *const u8));
+        }
 
         idt[InterruptIndex::Keyboard.as_u8()]
             .set_handler_fn(keyboard_interrupt_handler);
@@ -52,6 +77,7 @@ lazy_static! {
 
         idt[InterruptIndex::AtaSecondary.as_u8()]
             .set_handler_fn(ata_secondary_interrupt_handler);
+
 
         idt
     };
