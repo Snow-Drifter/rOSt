@@ -22,8 +22,7 @@ pub unsafe extern "sysv64" fn timer_interrupt_handler() -> ! {
         "push rax", // We push the RSP
         "mov rdi, rsp", // The first argument (RDI) is just pointing to the top of the stack (RSP)
 
-        "and rsp, -16",
-        "call {}", // We don't need to care about cleaning up the frame because we will be switching the process anyway
+        "jmp {}", // We don't need to care about cleaning up the frame because we will be switching the process anyway
         sym timer_handler
     )
 }
