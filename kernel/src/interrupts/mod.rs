@@ -11,6 +11,7 @@ pub(crate) mod gdt;
 mod pic_handlers;
 pub use gdt::GDT;
 mod pic;
+pub use pic_handlers::register_key_listener;
 
 use crate::interrupts::{
     gdt::reload_gdt,

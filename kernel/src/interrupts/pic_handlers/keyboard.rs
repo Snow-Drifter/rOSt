@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use internal_utils::logln;
 use lazy_static::lazy_static;
 use pc_keyboard::{DecodedKey, HandleControl, Keyboard, ScancodeSet1, layouts};
@@ -10,6 +11,8 @@ use crate::interrupts::{
     pic_handlers::addresses::PS2_INTERRUPT_CONTROLLER_SCAN_CODE_PORT,
 };
 
+type KeyboardSubscriber = fn(DecodedKey);
+
 lazy_static! {
     static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
         Mutex::new(Keyboard::new(
@@ -17,11 +20,23 @@ lazy_static! {
             layouts::Us104Key,
             HandleControl::Ignore
         ));
+    static ref SUBSCRIBERS: Mutex<Vec<KeyboardSubscriber>> = Mutex::new(Vec::new());
 }
 
 pub fn enable_keyboard_irq() {
     // makes IRQ1 visible to the PIC.
     enable_irq(InterruptIndex::Keyboard);
+}
+
+pub fn register_key_listener(listener: KeyboardSubscriber) {
+    SUBSCRIBERS.lock().push(listener);
+}
+
+fn dispatch_key_event(event: DecodedKey) {
+    let subscribers = SUBSCRIBERS.lock();
+    for subscriber in subscribers.iter() {
+        subscriber(event);
+    }
 }
 
 /// Handles a keyboard interrupt.
@@ -39,6 +54,7 @@ pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: Interrupt
             DecodedKey::Unicode(character) => logln!("{}", character),
             DecodedKey::RawKey(key) => logln!("{:?}", key),
         }
+        dispatch_key_event(key);
     }
 
     unsafe {
